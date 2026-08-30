@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120" role="img" aria-labelledby="title desc">
+  <title id="title">base_train.py 与 gpt.py 的完整协作生命周期</title>
+  <desc id="desc">按时间从上到下展示 base_train 调度、GPT 模型定义、PyTorch 运行机制以及 optimizer 和 checkpoint 的协作。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .title{font:700 30px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;fill:#0f172a}
+      .lane-title{font:700 19px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;fill:#0f172a}
+      .phase{font:700 16px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;fill:#334155}
+      .box-title{font:700 16px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;fill:#0f172a}
+      .body{font:14px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;fill:#334155}
+      .small{font:13px -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;fill:#475569}
+      .arrow{stroke:#475569;stroke-width:2;fill:none;marker-end:url(#arrow)}
+      .dashed{stroke:#94a3b8;stroke-width:1.5;stroke-dasharray:7 7}
+    </style>
+  </defs>
+
+  <rect width="1600" height="1120" fill="#f8fafc"/>
+  <text x="800" y="48" text-anchor="middle" class="title">base_train.py 与 gpt.py：从构造到保存的协作生命周期</text>
+
+  <rect x="135" y="78" width="330" height="54" rx="12" fill="#dbeafe"/>
+  <rect x="485" y="78" width="330" height="54" rx="12" fill="#dcfce7"/>
+  <rect x="835" y="78" width="330" height="54" rx="12" fill="#fef3c7"/>
+  <rect x="1185" y="78" width="280" height="54" rx="12" fill="#f3e8ff"/>
+  <text x="300" y="112" text-anchor="middle" class="lane-title">base_train.py：总调度</text>
+  <text x="650" y="112" text-anchor="middle" class="lane-title">gpt.py：模型语义</text>
+  <text x="1000" y="112" text-anchor="middle" class="lane-title">PyTorch：运行机制</text>
+  <text x="1325" y="112" text-anchor="middle" class="lane-title">Optimizer / Checkpoint</text>
+
+  <line x1="300" y1="140" x2="300" y2="1075" class="dashed"/>
+  <line x1="650" y1="140" x2="650" y2="1075" class="dashed"/>
+  <line x1="1000" y1="140" x2="1000" y2="1075" class="dashed"/>
+  <line x1="1325" y1="140" x2="1325" y2="1075" class="dashed"/>
+
+  <text x="28" y="185" class="phase">构造</text>
+  <rect x="155" y="155" width="290" height="82" rx="12" fill="#eff6ff" stroke="#60a5fa"/>
+  <text x="300" y="183" text-anchor="middle" class="box-title">由 CLI 推导 GPTConfig</text>
+  <text x="300" y="208" text-anchor="middle" class="body">depth → C、H、T、V、window pattern</text>
+  <rect x="505" y="155" width="290" height="82" rx="12" fill="#f0fdf4" stroke="#4ade80"/>
+  <text x="650" y="183" text-anchor="middle" class="box-title">GPT(config) on meta</text>
+  <text x="650" y="208" text-anchor="middle" class="body">建立 Module / Parameter / buffer 形状</text>
+  <path d="M445 196 H505" class="arrow"/>
+  <rect x="855" y="155" width="290" height="82" rx="12" fill="#fffbeb" stroke="#f59e0b"/>
+  <text x="1000" y="183" text-anchor="middle" class="box-title">nn.Module 注册对象树</text>
+  <text x="1000" y="208" text-anchor="middle" class="body">meta Tensor 暂不占真实参数存储</text>
+  <path d="M795 196 H855" class="arrow"/>
+
+  <text x="28" y="305" class="phase">初始化</text>
+  <rect x="155" y="260" width="290" height="92" rx="12" fill="#eff6ff" stroke="#60a5fa"/>
+  <text x="300" y="290" text-anchor="middle" class="box-title">to_empty(device)</text>
+  <text x="300" y="315" text-anchor="middle" class="body">在目标 GPU/CPU 分配未初始化存储</text>
+  <rect x="505" y="260" width="290" height="92" rx="12" fill="#f0fdf4" stroke="#4ade80"/>
+  <text x="650" y="290" text-anchor="middle" class="box-title">init_weights()</text>
+  <text x="650" y="315" text-anchor="middle" class="body">初始化权重、标量与 RoPE buffer</text>
+  <path d="M445 306 H505" class="arrow"/>
+  <rect x="1195" y="260" width="260" height="92" rx="12" fill="#faf5ff" stroke="#c084fc"/>
+  <text x="1325" y="290" text-anchor="middle" class="box-title">可选恢复 checkpoint</text>
+  <text x="1325" y="315" text-anchor="middle" class="body">load_state_dict 覆盖初始参数</text>
+  <path d="M795 306 C980 306 1010 306 1195 306" class="arrow"/>
+
+  <text x="28" y="425" class="phase">变换</text>
+  <rect x="155" y="380" width="290" height="92" rx="12" fill="#eff6ff" stroke="#60a5fa"/>
+  <text x="300" y="410" text-anchor="middle" class="box-title">可选 FP8 转换</text>
+  <text x="300" y="435" text-anchor="middle" class="body">替换满足条件的 Linear module</text>
+  <rect x="855" y="380" width="290" height="92" rx="12" fill="#fffbeb" stroke="#f59e0b"/>
+  <text x="1000" y="410" text-anchor="middle" class="box-title">torch.compile(model)</text>
+  <text x="1000" y="435" text-anchor="middle" class="body">包装原模型；参数仍是同一组对象</text>
+  <path d="M445 426 H855" class="arrow"/>
+
+  <text x="28" y="545" class="phase">规划</text>
+  <rect x="505" y="500" width="290" height="92" rx="12" fill="#f0fdf4" stroke="#4ade80"/>
+  <text x="650" y="530" text-anchor="middle" class="box-title">模型自省与 optimizer 工厂</text>
+  <text x="650" y="555" text-anchor="middle" class="body">参数/FLOPs 统计 + setup_optimizer</text>
+  <rect x="155" y="500" width="290" height="92" rx="12" fill="#eff6ff" stroke="#60a5fa"/>
+  <text x="300" y="530" text-anchor="middle" class="box-title">决定训练规模</text>
+  <text x="300" y="555" text-anchor="middle" class="body">token、step、batch、LR、weight decay</text>
+  <path d="M505 546 H445" class="arrow"/>
+  <rect x="1195" y="500" width="260" height="92" rx="12" fill="#faf5ff" stroke="#c084fc"/>
+  <text x="1325" y="530" text-anchor="middle" class="box-title">MuonAdamW / DistMuonAdamW</text>
+  <text x="1325" y="555" text-anchor="middle" class="body">接收 GPT 组织好的 param_groups</text>
+  <path d="M795 546 H1195" class="arrow"/>
+
+  <text x="28" y="705" class="phase">训练 step</text>
+  <rect x="155" y="625" width="290" height="126" rx="12" fill="#eff6ff" stroke="#60a5fa"/>
+  <text x="300" y="655" text-anchor="middle" class="box-title">model(x, y)</text>
+  <text x="300" y="681" text-anchor="middle" class="body">传入错位一位的 token id</text>
+  <text x="300" y="706" text-anchor="middle" class="body">得到标量 loss</text>
+  <text x="300" y="731" text-anchor="middle" class="small">重复 grad_accum_steps 次</text>
+  <rect x="505" y="625" width="290" height="126" rx="12" fill="#f0fdf4" stroke="#4ade80"/>
+  <text x="650" y="655" text-anchor="middle" class="box-title">GPT.forward</text>
+  <text x="650" y="681" text-anchor="middle" class="body">embedding → Blocks → logits</text>
+  <text x="650" y="706" text-anchor="middle" class="body">targets 存在 → cross entropy</text>
+  <path d="M445 688 H505" class="arrow"/>
+  <rect x="855" y="625" width="290" height="126" rx="12" fill="#fffbeb" stroke="#f59e0b"/>
+  <text x="1000" y="655" text-anchor="middle" class="box-title">forward kernels + autograd</text>
+  <text x="1000" y="681" text-anchor="middle" class="body">执行 Tensor 算子并记录计算图</text>
+  <text x="1000" y="706" text-anchor="middle" class="body">loss.backward → Parameter.grad</text>
+  <path d="M795 688 H855" class="arrow"/>
+  <rect x="1195" y="625" width="260" height="126" rx="12" fill="#faf5ff" stroke="#c084fc"/>
+  <text x="1325" y="655" text-anchor="middle" class="box-title">optimizer.step()</text>
+  <text x="1325" y="681" text-anchor="middle" class="body">AdamW / Muon 更新同一组参数</text>
+  <text x="1325" y="706" text-anchor="middle" class="body">多卡时在 optimizer 内通信</text>
+  <text x="1325" y="731" text-anchor="middle" class="small">随后 model.zero_grad()</text>
+  <path d="M1145 688 H1195" class="arrow"/>
+
+  <text x="28" y="875" class="phase">评估与生成</text>
+  <rect x="155" y="795" width="290" height="126" rx="12" fill="#eff6ff" stroke="#60a5fa"/>
+  <text x="300" y="825" text-anchor="middle" class="box-title">eval / CORE / sample</text>
+  <text x="300" y="851" text-anchor="middle" class="body">固定形状 BPB 用 compiled model</text>
+  <text x="300" y="876" text-anchor="middle" class="body">变长评估与生成用 orig_model</text>
+  <text x="300" y="901" text-anchor="middle" class="small">Engine 传入 KVCache</text>
+  <rect x="505" y="795" width="290" height="126" rx="12" fill="#f0fdf4" stroke="#4ade80"/>
+  <text x="650" y="825" text-anchor="middle" class="box-title">同一个 forward，两种返回</text>
+  <text x="650" y="851" text-anchor="middle" class="body">有 targets → loss</text>
+  <text x="650" y="876" text-anchor="middle" class="body">无 targets → logits</text>
+  <text x="650" y="901" text-anchor="middle" class="small">有 KVCache → 增量 attention</text>
+  <path d="M445 858 H505" class="arrow"/>
+
+  <text x="28" y="1015" class="phase">保存</text>
+  <rect x="155" y="960" width="290" height="98" rx="12" fill="#eff6ff" stroke="#60a5fa"/>
+  <text x="300" y="991" text-anchor="middle" class="box-title">save_checkpoint</text>
+  <text x="300" y="1017" text-anchor="middle" class="body">选择保存时机与 metadata</text>
+  <rect x="505" y="960" width="290" height="98" rx="12" fill="#f0fdf4" stroke="#4ade80"/>
+  <text x="650" y="991" text-anchor="middle" class="box-title">orig_model.state_dict()</text>
+  <text x="650" y="1017" text-anchor="middle" class="body">返回已注册 Parameter / persistent buffer</text>
+  <path d="M445 1009 H505" class="arrow"/>
+  <rect x="1195" y="960" width="260" height="98" rx="12" fill="#faf5ff" stroke="#c084fc"/>
+  <text x="1325" y="991" text-anchor="middle" class="box-title">模型 + optimizer + meta</text>
+  <text x="1325" y="1017" text-anchor="middle" class="body">分别保存，供恢复训练</text>
+  <path d="M795 1009 H1195" class="arrow"/>
+</svg>
